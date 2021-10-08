@@ -15,6 +15,7 @@ contract SmartBankAccountCompound {
     uint256 internal ContractBalance; // in wei
 
     mapping(address => uint256) balancesInCEth; // cEth in wei
+    mapping(address => uint256) balances; // in wei
 
     //rinkeby = 0xd6801a1dffcd0a410336ef88def4320d6df1883e
     //ropsten = 0x859e9d8a4edadfedb5a2ff311243af80f85a91b8
@@ -41,14 +42,14 @@ contract SmartBankAccountCompound {
     function withdraw(uint256 withdrawAmount) public payable returns (uint256) {
         require(withdrawAmount <= getBalance(msg.sender), "overdrawn");
 
-        balancesInCEth[msg.sender] -= withdrawAmount;
+        balances[msg.sender] -= withdrawAmount;
         ContractBalance -= withdrawAmount;
 
-        uint256 cEthOfContractBeforeRedeeming = address(this).balance;
+        uint256 EthOfContractBeforeRedeeming = address(this).balance;
         ceth.redeem(balancesInCEth[msg.sender]);
-        uint256 cEthOfContractAfterRedeeming = address(this).balance;
-        uint256 redeemable = cEthOfContractAfterRedeeming -
-            cEthOfContractBeforeRedeeming;
+        uint256 EthOfContractAfterRedeeming = address(this).balance;
+        uint256 redeemable = EthOfContractAfterRedeeming -
+            EthOfContractBeforeRedeeming;
 
         (bool sent, ) = payable(msg.sender).call{value: redeemable}("");
         require(sent, "Failed to send Ether");
