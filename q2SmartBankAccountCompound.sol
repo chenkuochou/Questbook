@@ -15,7 +15,6 @@ contract SmartBankAccountCompound {
     uint256 internal ContractBalance; // in wei
 
     mapping(address => uint256) balancesInCEth; // cEth in wei
-    mapping(address => uint256) balances; // in wei
 
     //rinkeby = 0xd6801a1dffcd0a410336ef88def4320d6df1883e
     //ropsten = 0x859e9d8a4edadfedb5a2ff311243af80f85a91b8
@@ -59,6 +58,10 @@ contract SmartBankAccountCompound {
 
     function getContractBalance() public view returns (uint256) {
         return ContractBalance;
+    }
+
+    function addMoneyToContract() public payable {
+        ContractBalance += msg.value;
     }
 
     receive() external payable {}

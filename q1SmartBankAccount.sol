@@ -24,7 +24,7 @@ contract SmartBankAccount {
         uint256 timeElapsed = block.timestamp - depositTimestamps[userAddress];
         return
             principal +
-            uint256((principal * 7 * timeElapsed) / (100 * 365 * 24 * 60 * 60)); //@
+            uint256((principal * 7 * timeElapsed) / (100 * 365 * 24 * 60 * 60));
     }
 
     function withdraw() public payable returns (bool) {
