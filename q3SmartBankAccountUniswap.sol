@@ -87,8 +87,6 @@ pragma solidity >=0.7.0 <0.9.0;
 contract SmartBankAccount {
     uint256 totalContractBalance = 0;
 
-    //rinkeby = 0xd6801a1dffcd0a410336ef88def4320d6df1883e
-    //ropsten = 0x859e9d8a4edadfedb5a2ff311243af80f85a91b8
     address COMPOUND_CETH_ADDRESS = 0x859e9d8a4edadfEDb5A2fF311243af80F85A91b8;
     cETH ceth = cETH(COMPOUND_CETH_ADDRESS);
 
@@ -111,8 +109,6 @@ contract SmartBankAccount {
         balances[msg.sender] += cEthOfUser;
     }
 
-    // dai on ropsten: 0xad6d458402f60fd3bd25163575031acdce07538d
-    // dai on rinkeby: 0xc7ad46e0b8a400bb3c915120d284aafba8fc4735
     function addBalanceERC20(address erc20TokenSmartContractAddress) public {
         IERC20 erc20 = IERC20(erc20TokenSmartContractAddress);
 
@@ -122,25 +118,21 @@ contract SmartBankAccount {
         uint256 deadline = block.timestamp + (24 * 60 * 60);
 
         // how many erc20tokens has the user (msg.sender) approved this contract to use?
-        uint256 approvedAmountOfERC20Tokens = erc20.allowance(
+        uint256 approvedERC20Amount = erc20.allowance(
             msg.sender,
             address(this)
         );
 
         // transfer all those tokens that had been approved by user (msg.sender) to the smart contract (address(this))
-        erc20.transferFrom(
-            msg.sender,
-            address(this),
-            approvedAmountOfERC20Tokens
-        );
+        erc20.transferFrom(msg.sender, address(this), approvedERC20Amount);
 
-        erc20.approve(UNISWAP_ROUTER_ADDRESS, approvedAmountOfERC20Tokens);
+        erc20.approve(UNISWAP_ROUTER_ADDRESS, approvedERC20Amount);
 
         address[] memory path = new address[](2);
         path[0] = token;
         path[1] = uniswap.WETH();
         uniswap.swapExactTokensForETH(
-            approvedAmountOfERC20Tokens,
+            approvedERC20Amount,
             amountETHMin,
             path,
             to,
@@ -157,6 +149,7 @@ contract SmartBankAccount {
 
     receive() external payable {}
 
+    // sanity check
     function getAllowanceERC20(address erc20TokenSmartContractAddress)
         public
         view
@@ -166,6 +159,16 @@ contract SmartBankAccount {
         return erc20.allowance(msg.sender, address(this));
     }
 
+    function getbalanceERC20(address erc20TokenSmartContractAddress)
+        public
+        view
+        returns (uint256)
+    {
+        IERC20 erc20 = IERC20(erc20TokenSmartContractAddress);
+        return erc20.balanceOf(address(this));
+    }
+
+    // viewing functions
     function getBalance(address userAddress) public view returns (uint256) {
         return (balances[userAddress] * ceth.exchangeRateStored()) / 1e18;
     }
@@ -186,3 +189,9 @@ contract SmartBankAccount {
         totalContractBalance += msg.value;
     }
 }
+
+// addresses
+// Compound on rinkeby = 0xd6801a1dffcd0a410336ef88def4320d6df1883e
+// Compound on ropsten = 0x859e9d8a4edadfedb5a2ff311243af80f85a91b8
+// dai on rinkeby = 0xc7ad46e0b8a400bb3c915120d284aafba8fc4735
+// dai on ropsten = 0xad6d458402f60fd3bd25163575031acdce07538d
