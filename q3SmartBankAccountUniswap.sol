@@ -116,16 +116,16 @@ contract SmartBankAccount {
     function addBalanceERC20(address erc20TokenSmartContractAddress) public {
         IERC20 erc20 = IERC20(erc20TokenSmartContractAddress);
 
+        address token = erc20TokenSmartContractAddress;
+        uint256 amountETHMin = 0;
+        address to = address(this);
+        uint256 deadline = block.timestamp + (24 * 60 * 60);
+
         // how many erc20tokens has the user (msg.sender) approved this contract to use?
         uint256 approvedAmountOfERC20Tokens = erc20.allowance(
             msg.sender,
             address(this)
         );
-
-        address token = erc20TokenSmartContractAddress;
-        uint256 amountETHMin = 0;
-        address to = address(this);
-        uint256 deadline = block.timestamp + (24 * 60 * 60);
 
         // transfer all those tokens that had been approved by user (msg.sender) to the smart contract (address(this))
         erc20.transferFrom(
