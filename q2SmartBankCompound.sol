@@ -33,24 +33,24 @@ contract SmartBankCompound {
 
         contractBalance -= withdrawAmount;
 
-        uint256 ethBefore = address(this).balance;
+        //uint256 ethBefore = address(this).balance;
 
         uint256 cethToRedeem = getTotalEthFromCeth() *
             (withdrawAmount / contractBalance);
 
-        ceth.redeem(cethToRedeem);
+        uint256 transferable = ceth.redeem(cethToRedeem);
 
         // uint256 cethToRedeemTest = getUserEth() *
         //     (withdrawAmount / balances[msg.sender]);
         // ceth.redeem(cethToRedeem);
 
-        uint256 ethAfter = address(this).balance;
-        uint256 redeemable = ethAfter - ethBefore;
+        //uint256 ethAfter = address(this).balance;
+        //uint256 redeemable = ethAfter - ethBefore;
 
-        (bool sent, ) = payable(msg.sender).call{value: redeemable}("");
+        (bool sent, ) = payable(msg.sender).call{value: transferable}("");
         require(sent, "Failed to send Ether");
 
-        return redeemable;
+        return transferable;
     }
 
     function getUserEth() public view returns (uint256) {
