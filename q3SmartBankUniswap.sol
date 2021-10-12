@@ -98,24 +98,18 @@ contract SmartBankAccount {
     //mapping(address => uint256) test;
 
     function addBalance() public payable {
-        uint256 cEthOfContractBeforeMinting = ceth.balanceOf(address(this));
+        uint256 cEthBeforeMinting = ceth.balanceOf(address(this));
 
         ceth.mint{value: msg.value}();
 
-        uint256 cEthOfContractAfterMinting = ceth.balanceOf(address(this));
+        uint256 cEthAfterMinting = ceth.balanceOf(address(this));
 
-        uint256 cEthOfUser = cEthOfContractAfterMinting -
-            cEthOfContractBeforeMinting;
+        uint256 cEthOfUser = cEthAfterMinting - cEthBeforeMinting;
         balances[msg.sender] += cEthOfUser;
     }
 
-    function addBalanceERC20(address erc20TokenSmartContractAddress) public {
-        IERC20 erc20 = IERC20(erc20TokenSmartContractAddress);
-
-        address token = erc20TokenSmartContractAddress;
-        uint256 amountETHMin = 0;
-        address to = address(this);
-        uint256 deadline = block.timestamp + (24 * 60 * 60);
+    function addBalanceERC20(address erc20Address) public {
+        IERC20 erc20 = IERC20(erc20Address);
 
         // how many erc20tokens has the user (msg.sender) approved this contract to use?
         uint256 approvedERC20Amount = erc20.allowance(
@@ -128,19 +122,28 @@ contract SmartBankAccount {
 
         erc20.approve(UNISWAP_ROUTER_ADDRESS, approvedERC20Amount);
 
+        address token = erc20Address;
+        // uint256 amountETHMin = 0;
+        // address to = address(this);
+        // uint256 deadline = block.timestamp + (24 * 60 * 60);
         address[] memory path = new address[](2);
         path[0] = token;
-        path[1] = uniswap.WETH();
+        path[1] = uniswap.WETH(); // check uniswap.exchange
+
         uniswap.swapExactTokensForETH(
             approvedERC20Amount,
-            amountETHMin,
+            0,
             path,
-            to,
-            deadline
+            address(this),
+            block.timestamp + (24 * 60 * 60)
         );
         //TODO : rest of the logic
         // 3. deposit eth to compound
     }
+
+    function swapTokens(address erc20TokenAddress) public payable {}
+
+    function depositToCompound() public payable {}
 
     function withdraw() public payable {
         ceth.redeem(balances[msg.sender]);
@@ -150,21 +153,21 @@ contract SmartBankAccount {
     receive() external payable {}
 
     // sanity check
-    function getAllowanceERC20(address erc20TokenSmartContractAddress)
+    function getAllowanceERC20(address erc20Address)
         public
         view
         returns (uint256)
     {
-        IERC20 erc20 = IERC20(erc20TokenSmartContractAddress);
+        IERC20 erc20 = IERC20(erc20Address);
         return erc20.allowance(msg.sender, address(this));
     }
 
-    function getbalanceERC20(address erc20TokenSmartContractAddress)
+    function getbalanceERC20(address erc20Address)
         public
         view
         returns (uint256)
     {
-        IERC20 erc20 = IERC20(erc20TokenSmartContractAddress);
+        IERC20 erc20 = IERC20(erc20Address);
         return erc20.balanceOf(address(this));
     }
 

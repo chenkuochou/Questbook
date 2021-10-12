@@ -23,12 +23,11 @@ contract SmartBankAccountCompound {
     cETH ceth = cETH(COMPOUND_CETH_ADDRESS);
 
     function addBalance() public payable {
-        uint256 cEthOfContractBeforeMinting = ceth.balanceOf(address(this));
+        uint256 cEthBeforeMinting = ceth.balanceOf(address(this));
         ceth.mint{value: msg.value}();
-        uint256 cEthOfContractAfterMinting = ceth.balanceOf(address(this));
+        uint256 cEthAfterMinting = ceth.balanceOf(address(this));
 
-        uint256 cEthOfUser = cEthOfContractAfterMinting -
-            cEthOfContractBeforeMinting;
+        uint256 cEthOfUser = cEthAfterMinting - cEthBeforeMinting;
         balancesInCEth[msg.sender] += cEthOfUser;
 
         balances[msg.sender] += msg.value;
@@ -45,11 +44,10 @@ contract SmartBankAccountCompound {
         balances[msg.sender] -= withdrawAmount;
         ContractBalance -= withdrawAmount;
 
-        uint256 EthOfContractBeforeRedeeming = address(this).balance;
+        uint256 EthBeforeRedeeming = address(this).balance;
         ceth.redeem(balancesInCEth[msg.sender]);
-        uint256 EthOfContractAfterRedeeming = address(this).balance;
-        uint256 redeemable = EthOfContractAfterRedeeming -
-            EthOfContractBeforeRedeeming;
+        uint256 EthAfterRedeeming = address(this).balance;
+        uint256 redeemable = EthAfterRedeeming - EthBeforeRedeeming;
 
         (bool sent, ) = payable(msg.sender).call{value: redeemable}("");
         require(sent, "Failed to send Ether");
