@@ -13,7 +13,6 @@ interface cETH {
 
 contract SmartBankCompound {
     uint256 internal contractBalance; // pool ETH in wei
-
     mapping(address => uint256) balances; // user ETH in wei
 
     //rinkeby = 0xd6801a1dffcd0a410336ef88def4320d6df1883e
@@ -31,21 +30,12 @@ contract SmartBankCompound {
     function withdraw(uint256 withdrawAmount) public payable returns (uint256) {
         require(withdrawAmount <= getUserEth(), "overdrawn");
 
+        balances[msg.sender] -= msg.value;
         contractBalance -= withdrawAmount;
-
-        //uint256 ethBefore = address(this).balance;
 
         uint256 cethToRedeem = getTotalEthFromCeth() *
             (withdrawAmount / contractBalance);
-
         uint256 transferable = ceth.redeem(cethToRedeem);
-
-        // uint256 cethToRedeemTest = getUserEth() *
-        //     (withdrawAmount / balances[msg.sender]);
-        // ceth.redeem(cethToRedeem);
-
-        //uint256 ethAfter = address(this).balance;
-        //uint256 redeemable = ethAfter - ethBefore;
 
         (bool sent, ) = payable(msg.sender).call{value: transferable}("");
         require(sent, "Failed to send Ether");

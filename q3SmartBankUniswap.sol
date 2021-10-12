@@ -85,7 +85,8 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 pragma solidity >=0.7.0 <0.9.0;
 
 contract SmartBankUniswap {
-    uint256 ContractBalance = 0; // in wei
+    uint256 internal contractBalance; // pool ETH in wei
+    mapping(address => uint256) balances; // user ETH in wei
 
     address COMPOUND_CETH_ADDRESS = 0x859e9d8a4edadfEDb5A2fF311243af80F85A91b8;
     cETH ceth = cETH(COMPOUND_CETH_ADDRESS);
@@ -93,21 +94,11 @@ contract SmartBankUniswap {
     address UNISWAP_ROUTER_ADDRESS = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     IUniswapV2Router02 uniswap = IUniswapV2Router02(UNISWAP_ROUTER_ADDRESS);
 
-    mapping(address => uint256) balances;
-    mapping(address => uint256) balancesInCeth;
-
-    //mapping(address => uint256) test;
-
     function addBalance() public payable {
-        uint256 cEthBeforeMinting = ceth.balanceOf(address(this));
-        ceth.mint{value: msg.value}();
-        uint256 cEthAfterMinting = ceth.balanceOf(address(this));
-
-        uint256 cEthOfUser = cEthAfterMinting - cEthBeforeMinting;
-        balancesInCeth[msg.sender] += cEthOfUser;
-
         balances[msg.sender] += msg.value;
-        ContractBalance += msg.value;
+        contractBalance += msg.value;
+
+        ceth.mint{value: msg.value}();
     }
 
     function addBalanceERC20(address erc20Address) public {
@@ -148,23 +139,20 @@ contract SmartBankUniswap {
     function depositToCompound() public payable {}
 
     function withdraw(uint256 withdrawAmount) public payable returns (uint256) {
-        require(withdrawAmount <= getBalance(msg.sender), "overdrawn");
+        require(withdrawAmount <= getUserEth(), "overdrawn");
 
-        balances[msg.sender] -= withdrawAmount;
-        ContractBalance -= withdrawAmount;
+        balances[msg.sender] -= msg.value;
+        contractBalance -= withdrawAmount;
 
-        uint256 EthBeforeRedeeming = address(this).balance;
-        ceth.redeem(balancesInCeth[msg.sender]);
-        uint256 EthAfterRedeeming = address(this).balance;
-        uint256 redeemable = EthAfterRedeeming - EthBeforeRedeeming;
+        uint256 cethToRedeem = getTotalEthFromCeth() *
+            (withdrawAmount / contractBalance);
+        uint256 transferable = ceth.redeem(cethToRedeem);
 
-        (bool sent, ) = payable(msg.sender).call{value: redeemable}("");
+        (bool sent, ) = payable(msg.sender).call{value: transferable}("");
         require(sent, "Failed to send Ether");
 
-        return redeemable;
+        return transferable;
     }
-
-    receive() external payable {}
 
     // sanity check
     function getAllowanceERC20(address erc20Address)
@@ -185,25 +173,24 @@ contract SmartBankUniswap {
         return erc20.balanceOf(address(this));
     }
 
+    receive() external payable {}
+
     // viewing functions
-    function getBalance(address userAddress) public view returns (uint256) {
-        return (balancesInCeth[userAddress] * ceth.exchangeRateStored());
+    function getUserEth() public view returns (uint256) {
+        return (getTotalEthFromCeth() *
+            (balances[msg.sender] / contractBalance));
     }
 
-    function getCethBalance(address userAddress) public view returns (uint256) {
-        return balancesInCeth[userAddress];
+    function getTotalEthFromCeth() public view returns (uint256) {
+        return ceth.balanceOf(address(this)) * ceth.exchangeRateStored();
+    }
+
+    function getContractBalance() public view returns (uint256) {
+        return contractBalance;
     }
 
     function getExchangeRate() public view returns (uint256) {
         return ceth.exchangeRateStored();
-    }
-
-    function getContractBalance() public view returns (uint256) {
-        return ContractBalance;
-    }
-
-    function addMoneyToContract() public payable {
-        ContractBalance += msg.value;
     }
 }
 
