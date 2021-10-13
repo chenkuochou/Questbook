@@ -101,8 +101,8 @@ contract SmartBankUniswap {
         ceth.mint{value: msg.value}();
     }
 
-    function addBalanceERC20(address erc20Address) public {
-        IERC20 erc20 = IERC20(erc20Address);
+    function addBalanceERC20(address erc20Contract) public {
+        IERC20 erc20 = IERC20(erc20Contract);
 
         // how many erc20tokens has the user (msg.sender) approved this contract to use?
         uint256 approvedERC20Amount = erc20.allowance(
@@ -115,7 +115,7 @@ contract SmartBankUniswap {
 
         erc20.approve(UNISWAP_ROUTER_ADDRESS, approvedERC20Amount);
 
-        address token = erc20Address;
+        address token = erc20Contract;
         // uint256 amountETHMin = 0;
         // address to = address(this);
         // uint256 deadline = block.timestamp + (24 * 60 * 60);
@@ -155,21 +155,21 @@ contract SmartBankUniswap {
     }
 
     // sanity check
-    function getAllowanceERC20(address erc20Address)
+    function getAllowanceERC20(address erc20Contract)
         public
         view
         returns (uint256)
     {
-        IERC20 erc20 = IERC20(erc20Address);
+        IERC20 erc20 = IERC20(erc20Contract);
         return erc20.allowance(msg.sender, address(this));
     }
 
-    function getbalanceERC20(address erc20Address)
+    function getbalanceERC20(address erc20Contract)
         public
         view
         returns (uint256)
     {
-        IERC20 erc20 = IERC20(erc20Address);
+        IERC20 erc20 = IERC20(erc20Contract);
         return erc20.balanceOf(address(this));
     }
 
