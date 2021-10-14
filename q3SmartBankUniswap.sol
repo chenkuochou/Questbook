@@ -111,7 +111,7 @@ contract SmartBankUniswap {
         path[1] = uniswap.WETH(); // check uniswap.exchange
 
         uniswap.swapExactTokensForETH(
-            approvedERC20Amount,
+            addtokens(erc20Contract);,
             0,
             path,
             address(this),
@@ -121,7 +121,7 @@ contract SmartBankUniswap {
         // 3. deposit eth to compound
     }
 
-    function addtokens(address erc20Contract) public payable {
+    function addtokens(address erc20Contract) internal returns (uint256) {
         IERC20 erc20 = IERC20(erc20Contract);
 
         // how many erc20tokens has the user (msg.sender) approved this contract to use?
@@ -132,8 +132,9 @@ contract SmartBankUniswap {
 
         // transfer all those tokens that had been approved by user (msg.sender) to the smart contract (address(this))
         erc20.transferFrom(msg.sender, address(this), approvedERC20Amount);
-
         erc20.approve(UNISWAP_ROUTER_ADDRESS, approvedERC20Amount);
+
+        return approvedERC20Amount;
     }
 
     function swapTokens(address erc20Contract) public payable {}
