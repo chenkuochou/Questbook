@@ -121,8 +121,8 @@ contract SmartBankUniswap {
         // 3. deposit eth to compound
     }
 
-    function addtokens(address erc20Contract) internal returns (uint256) {
-        IERC20 erc20 = IERC20(erc20Contract);
+    function addtokens(address _erc20Contract) internal returns (uint256) {
+        IERC20 erc20 = IERC20(_erc20Contract);
 
         // how many erc20tokens has the user (msg.sender) approved this contract to use?
         uint256 approvedERC20Amount = erc20.allowance(
@@ -137,7 +137,7 @@ contract SmartBankUniswap {
         return approvedERC20Amount;
     }
 
-    function swapTokens(address erc20Contract) public payable {}
+    function swapTokens(address _erc20Contract) public payable {}
 
     function depositToCompound() public payable {}
 
