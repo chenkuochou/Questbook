@@ -111,7 +111,7 @@ contract SmartBankUniswap {
         path[1] = uniswap.WETH(); // check uniswap.exchange
 
         uniswap.swapExactTokensForETH(
-            addtokens(erc20Contract);,
+            addtokens(erc20Contract),
             0,
             path,
             address(this),
