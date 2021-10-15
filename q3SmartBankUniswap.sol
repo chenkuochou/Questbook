@@ -97,49 +97,53 @@ contract SmartBankUniswap {
     function addBalance() public payable {
         balances[msg.sender] += msg.value;
         contractBalance += msg.value;
-
         ceth.mint{value: msg.value}();
     }
 
-    function addBalanceERC20(address erc20Contract) public {
-        address token = erc20Contract;
-        // uint256 amountETHMin = 0;
-        // address to = address(this);
-        // uint256 deadline = block.timestamp + (24 * 60 * 60);
-        address[] memory path = new address[](2);
-        path[0] = token;
-        path[1] = uniswap.WETH(); // check uniswap.exchange
+    function addBalanceERC20(address erc20Contract) public payable {
+        uint256 approvedERC20Amount = addtokens(erc20Contract);
+        uint256 ethAmount = swapTokens(erc20Contract, approvedERC20Amount);
 
-        uniswap.swapExactTokensForETH(
-            addtokens(erc20Contract),
-            0,
-            path,
-            address(this),
-            block.timestamp + (24 * 60 * 60)
-        );
-        //TODO : rest of the logic
-        // 3. deposit eth to compound
+        balances[msg.sender] += msg.value;
+        contractBalance += msg.value;
+        ceth.mint{value: ethAmount}();
     }
 
     function addtokens(address _erc20Contract) internal returns (uint256) {
         IERC20 erc20 = IERC20(_erc20Contract);
 
-        // how many erc20tokens has the user (msg.sender) approved this contract to use?
         uint256 approvedERC20Amount = erc20.allowance(
             msg.sender,
             address(this)
         );
-
-        // transfer all those tokens that had been approved by user (msg.sender) to the smart contract (address(this))
         erc20.transferFrom(msg.sender, address(this), approvedERC20Amount);
         erc20.approve(UNISWAP_ROUTER_ADDRESS, approvedERC20Amount);
 
         return approvedERC20Amount;
     }
 
-    function swapTokens(address _erc20Contract) public payable {}
+    function swapTokens(address _erc20Contract, uint256 _approvedERC20Amount)
+        internal
+        returns (uint256)
+    {
+        uint256 amountETHMin = 0; // accept any amount of token
 
-    function depositToCompound() public payable {}
+        address[] memory path = new address[](2);
+        path[0] = _erc20Contract;
+        path[1] = uniswap.WETH(); // check uniswap.exchange
+
+        uint256 before = address(this).balance;
+        uniswap.swapExactTokensForETH(
+            _approvedERC20Amount,
+            amountETHMin,
+            path,
+            address(this),
+            block.timestamp + (24 * 60 * 60)
+        );
+        uint256 _ethAmount = address(this).balance - before;
+
+        return _ethAmount;
+    }
 
     function withdraw(uint256 withdrawAmount) public payable returns (uint256) {
         require(withdrawAmount <= getUserEth(), "overdrawn");
