@@ -84,8 +84,9 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 
 pragma solidity >=0.7.0 <0.9.0;
 
-contract SmartBankAccount {
-    uint256 totalContractBalance = 0;
+contract SmartBankUniswap {
+    uint256 internal contractBalance; // pool ETH in wei
+    mapping(address => uint256) balances; // user ETH in wei
 
     address COMPOUND_CETH_ADDRESS = 0x859e9d8a4edadfEDb5A2fF311243af80F85A91b8;
     cETH ceth = cETH(COMPOUND_CETH_ADDRESS);
@@ -93,103 +94,110 @@ contract SmartBankAccount {
     address UNISWAP_ROUTER_ADDRESS = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     IUniswapV2Router02 uniswap = IUniswapV2Router02(UNISWAP_ROUTER_ADDRESS);
 
-    mapping(address => uint256) balances;
-
-    //mapping(address => uint256) test;
-
     function addBalance() public payable {
-        uint256 cEthBeforeMinting = ceth.balanceOf(address(this));
-
+        balances[msg.sender] += msg.value;
+        contractBalance += msg.value;
         ceth.mint{value: msg.value}();
-
-        uint256 cEthAfterMinting = ceth.balanceOf(address(this));
-
-        uint256 cEthOfUser = cEthAfterMinting - cEthBeforeMinting;
-        balances[msg.sender] += cEthOfUser;
     }
 
-    function addBalanceERC20(address erc20Address) public {
-        IERC20 erc20 = IERC20(erc20Address);
+    function addBalanceERC20(address erc20Contract) public payable {
+        uint256 approvedERC20Amount = addtokens(erc20Contract);
+        uint256 ethAmount = swapTokens(erc20Contract, approvedERC20Amount);
 
-        // how many erc20tokens has the user (msg.sender) approved this contract to use?
+        balances[msg.sender] += msg.value;
+        contractBalance += msg.value;
+        ceth.mint{value: ethAmount}();
+    }
+
+    function addtokens(address _erc20Contract) internal returns (uint256) {
+        IERC20 erc20 = IERC20(_erc20Contract);
+
         uint256 approvedERC20Amount = erc20.allowance(
             msg.sender,
             address(this)
         );
-
-        // transfer all those tokens that had been approved by user (msg.sender) to the smart contract (address(this))
         erc20.transferFrom(msg.sender, address(this), approvedERC20Amount);
-
         erc20.approve(UNISWAP_ROUTER_ADDRESS, approvedERC20Amount);
 
-        address token = erc20Address;
-        // uint256 amountETHMin = 0;
-        // address to = address(this);
-        // uint256 deadline = block.timestamp + (24 * 60 * 60);
+        return approvedERC20Amount;
+    }
+
+    function swapTokens(address _erc20Contract, uint256 _approvedERC20Amount)
+        internal
+        returns (uint256)
+    {
+        uint256 amountETHMin = 0; // accept any amount of token
+
         address[] memory path = new address[](2);
-        path[0] = token;
+        path[0] = _erc20Contract;
         path[1] = uniswap.WETH(); // check uniswap.exchange
 
+        uint256 before = address(this).balance;
         uniswap.swapExactTokensForETH(
-            approvedERC20Amount,
-            0,
+            _approvedERC20Amount,
+            amountETHMin,
             path,
             address(this),
             block.timestamp + (24 * 60 * 60)
         );
-        //TODO : rest of the logic
-        // 3. deposit eth to compound
+        uint256 _ethAmount = address(this).balance - before;
+
+        return _ethAmount;
     }
 
-    function swapTokens(address erc20TokenAddress) public payable {}
+    function withdraw(uint256 withdrawAmount) public payable returns (uint256) {
+        require(withdrawAmount <= getUserEth(), "overdrawn");
 
-    function depositToCompound() public payable {}
+        balances[msg.sender] -= msg.value;
+        contractBalance -= withdrawAmount;
 
-    function withdraw() public payable {
-        ceth.redeem(balances[msg.sender]);
-        balances[msg.sender] = 0;
+        uint256 cethToRedeem = getTotalEthFromCeth() *
+            (withdrawAmount / contractBalance);
+        uint256 transferable = ceth.redeem(cethToRedeem);
+
+        (bool sent, ) = payable(msg.sender).call{value: transferable}("");
+        require(sent, "Failed to send Ether");
+
+        return transferable;
+    }
+
+    // sanity check
+    function getAllowanceERC20(address erc20Contract)
+        public
+        view
+        returns (uint256)
+    {
+        IERC20 erc20 = IERC20(erc20Contract);
+        return erc20.allowance(msg.sender, address(this));
+    }
+
+    function getbalanceERC20(address erc20Contract)
+        public
+        view
+        returns (uint256)
+    {
+        IERC20 erc20 = IERC20(erc20Contract);
+        return erc20.balanceOf(address(this));
     }
 
     receive() external payable {}
 
-    // sanity check
-    function getAllowanceERC20(address erc20Address)
-        public
-        view
-        returns (uint256)
-    {
-        IERC20 erc20 = IERC20(erc20Address);
-        return erc20.allowance(msg.sender, address(this));
-    }
-
-    function getbalanceERC20(address erc20Address)
-        public
-        view
-        returns (uint256)
-    {
-        IERC20 erc20 = IERC20(erc20Address);
-        return erc20.balanceOf(address(this));
-    }
-
     // viewing functions
-    function getBalance(address userAddress) public view returns (uint256) {
-        return (balances[userAddress] * ceth.exchangeRateStored()) / 1e18;
+    function getUserEth() public view returns (uint256) {
+        return (getTotalEthFromCeth() *
+            (balances[msg.sender] / contractBalance));
     }
 
-    function getCethBalance(address userAddress) public view returns (uint256) {
-        return balances[userAddress];
+    function getTotalEthFromCeth() public view returns (uint256) {
+        return ceth.balanceOf(address(this)) * ceth.exchangeRateStored();
+    }
+
+    function getContractBalance() public view returns (uint256) {
+        return contractBalance;
     }
 
     function getExchangeRate() public view returns (uint256) {
         return ceth.exchangeRateStored();
-    }
-
-    function getContractBalance() public view returns (uint256) {
-        return totalContractBalance;
-    }
-
-    function addMoneyToContract() public payable {
-        totalContractBalance += msg.value;
     }
 }
 

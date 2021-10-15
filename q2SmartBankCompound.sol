@@ -11,56 +11,49 @@ interface cETH {
     function balanceOf(address owner) external view returns (uint256 balance);
 }
 
-contract SmartBankAccountCompound {
-    uint256 internal ContractBalance; // in wei
-
-    mapping(address => uint256) balancesInCEth; // cEth in wei
-    mapping(address => uint256) balances; // in wei
+contract SmartBankCompound {
+    uint256 internal contractBalance; // pool ETH in wei
+    mapping(address => uint256) balances; // user ETH in wei
 
     //rinkeby = 0xd6801a1dffcd0a410336ef88def4320d6df1883e
     //ropsten = 0x859e9d8a4edadfedb5a2ff311243af80f85a91b8
-    address COMPOUND_CETH_ADDRESS = 0x859e9d8a4edadfEDb5A2fF311243af80F85A91b8;
-    cETH ceth = cETH(COMPOUND_CETH_ADDRESS);
+    address _cEtherContract = 0x859e9d8a4edadfEDb5A2fF311243af80F85A91b8;
+    cETH ceth = cETH(_cEtherContract);
 
     function addBalance() public payable {
-        uint256 cEthBeforeMinting = ceth.balanceOf(address(this));
-        ceth.mint{value: msg.value}();
-        uint256 cEthAfterMinting = ceth.balanceOf(address(this));
-
-        uint256 cEthOfUser = cEthAfterMinting - cEthBeforeMinting;
-        balancesInCEth[msg.sender] += cEthOfUser;
-
         balances[msg.sender] += msg.value;
-        ContractBalance += msg.value;
-    }
+        contractBalance += msg.value;
 
-    function getBalance(address userAddress) public view returns (uint256) {
-        return (balancesInCEth[userAddress] * ceth.exchangeRateStored());
+        ceth.mint{value: msg.value}();
     }
 
     function withdraw(uint256 withdrawAmount) public payable returns (uint256) {
-        require(withdrawAmount <= getBalance(msg.sender), "overdrawn");
+        require(withdrawAmount <= getUserEth(), "overdrawn");
 
-        balances[msg.sender] -= withdrawAmount;
-        ContractBalance -= withdrawAmount;
+        balances[msg.sender] -= msg.value;
+        contractBalance -= withdrawAmount;
 
-        uint256 EthBeforeRedeeming = address(this).balance;
-        ceth.redeem(balancesInCEth[msg.sender]);
-        uint256 EthAfterRedeeming = address(this).balance;
-        uint256 redeemable = EthAfterRedeeming - EthBeforeRedeeming;
+        uint256 cethToRedeem = getTotalEthFromCeth() *
+            (withdrawAmount / contractBalance);
+        uint256 transferable = ceth.redeem(cethToRedeem);
 
-        (bool sent, ) = payable(msg.sender).call{value: redeemable}("");
+        (bool sent, ) = payable(msg.sender).call{value: transferable}("");
         require(sent, "Failed to send Ether");
 
-        return redeemable;
+        return transferable;
+    }
+
+    function getUserEth() public view returns (uint256) {
+        return (getTotalEthFromCeth() *
+            (balances[msg.sender] / contractBalance));
+    }
+
+    function getTotalEthFromCeth() public view returns (uint256) {
+        return ceth.balanceOf(address(this)) * ceth.exchangeRateStored();
     }
 
     function getContractBalance() public view returns (uint256) {
-        return ContractBalance;
-    }
-
-    function addMoneyToContract() public payable {
-        ContractBalance += msg.value;
+        return contractBalance;
     }
 
     receive() external payable {}
