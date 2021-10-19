@@ -112,11 +112,9 @@ contract SmartCoin is IERC20 {
 
     function mine() public returns (bool success) {
         if (blockMined[block.number]) {
-            // rewards of this block already mined
             return false;
         }
         if (block.number % 10 != 0) {
-            // not a 10th block
             return false;
         }
 
