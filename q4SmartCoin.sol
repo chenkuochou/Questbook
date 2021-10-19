@@ -36,18 +36,14 @@ contract SmartCoin is IERC20 {
     string public NAME = "SmartCoin";
     string public SYMBOL = "SMC";
     uint256 totalMinted = 1000000 * 1e8; //1M that has been minted to the deployer in constructor()
-    address deployer;
 
     mapping(address => uint256) balances;
     mapping(address => mapping(address => uint256)) allowances;
     mapping(address => mapping(address => uint256)) allowed;
     mapping(uint256 => bool) blockMined;
 
-    using SafeMath for uint256;
-
     constructor() {
-        deployer = msg.sender;
-        balances[deployer] = 1000000 * 1e8;
+        balances[msg.sender] = 1000000 * 1e8;
     }
 
     function name() public view returns (string memory) {
@@ -58,29 +54,27 @@ contract SmartCoin is IERC20 {
         return SYMBOL;
     }
 
-    function decimals() public view returns (uint8) {
+    function decimals() public pure returns (uint8) {
         return 8;
     }
 
-    function totalSupply() public view returns (uint256) {
-        return 10000000 * 1e8; //10M * 10^8 because decimals is 8
+    function totalSupply() public pure returns (uint256) {
+        return 10000000 * 1e8; // 9M to the contract creator
     }
 
     function balanceOf(address _owner) public view returns (uint256 balance) {
         return balances[_owner];
     }
 
-    function transfer(address _to, uint256 _value)
+    function transfer(address receiver, uint256 numTokens)
         public
-        returns (bool success)
+        override
+        returns (bool)
     {
-        require(balances[msg.sender] > _value, "Not enough balance!");
-        balances[deployer] += ((_value * 10) / 100); // Warning: not taking overflow into account
-        balances[_to] += _value - ((_value * 10) / 100); // Warning: not taking overflow into account
-        // balances[_to] += _value;
-        balances[msg.sender] -= _value;
-
-        emit Transfer(msg.sender, _to, _value);
+        require(numTokens <= balances[msg.sender]);
+        balances[msg.sender] = balances[msg.sender] - (numTokens);
+        balances[receiver] = balances[receiver] + (numTokens);
+        emit Transfer(msg.sender, receiver, numTokens);
         return true;
     }
 
@@ -92,9 +86,9 @@ contract SmartCoin is IERC20 {
         require(numTokens <= balances[owner]);
         require(numTokens <= allowed[owner][msg.sender]);
 
-        balances[owner] = balances[owner].sub(numTokens);
-        allowed[owner][msg.sender] = allowed[owner][msg.sender].sub(numTokens);
-        balances[buyer] = balances[buyer].add(numTokens);
+        balances[owner] = balances[owner] - (numTokens);
+        allowed[owner][msg.sender] = allowed[owner][msg.sender] - (numTokens);
+        balances[buyer] = balances[buyer] + (numTokens);
         emit Transfer(owner, buyer, numTokens);
         return true;
     }
@@ -126,11 +120,14 @@ contract SmartCoin is IERC20 {
             return false;
         }
 
-        require(totalMinted + 10 * 1e8 <= totalSupply());
+        uint256 rewards = 10 * 1e8;
+        require(totalMinted + rewards <= totalSupply());
 
-        balances[msg.sender] = balances[msg.sender] + 10 * 1e8;
-        totalMinted = totalMinted + 10 * 1e8;
+        balances[msg.sender] = balances[msg.sender] + rewards;
+        totalMinted = totalMinted + rewards;
         blockMined[block.number] = true;
+
+        emit Transfer(address(0), msg.sender, rewards);
 
         return true;
     }
@@ -141,18 +138,5 @@ contract SmartCoin is IERC20 {
 
     function isMined(uint256 blockNumber) public view returns (bool) {
         return blockMined[blockNumber];
-    }
-}
-
-library SafeMath {
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        assert(b <= a);
-        return a - b;
-    }
-
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        uint256 c = a + b;
-        assert(c >= a);
-        return c;
     }
 }
