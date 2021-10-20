@@ -35,6 +35,7 @@ interface IERC20 {
 contract SmartCoin is IERC20 {
     string public NAME = "SmartCoin";
     string public SYMBOL = "SMC";
+    address deployer;
     uint256 totalMinted = 1000000 * 1e8; //1M that has been minted to the deployer in constructor()
 
     mapping(address => uint256) balances;
@@ -43,7 +44,8 @@ contract SmartCoin is IERC20 {
     mapping(uint256 => bool) blockMined;
 
     constructor() {
-        balances[msg.sender] = 1000000 * 1e8;
+        deployer = msg.sender;
+        balances[deployer] = 1000000 * 1e8;
     }
 
     function name() public view returns (string memory) {
@@ -54,15 +56,20 @@ contract SmartCoin is IERC20 {
         return SYMBOL;
     }
 
-    function decimals() public pure returns (uint8) {
+    function decimals() public view returns (uint8) {
         return 8;
     }
 
-    function totalSupply() public pure returns (uint256) {
+    function totalSupply() public view override returns (uint256) {
         return 10000000 * 1e8; // 9M to the contract creator
     }
 
-    function balanceOf(address _owner) public view returns (uint256 balance) {
+    function balanceOf(address _owner)
+        public
+        view
+        override
+        returns (uint256 balance)
+    {
         return balances[_owner];
     }
 
@@ -72,8 +79,10 @@ contract SmartCoin is IERC20 {
         returns (bool)
     {
         require(numTokens <= balances[msg.sender]);
-        balances[msg.sender] = balances[msg.sender] - (numTokens);
-        balances[receiver] = balances[receiver] + (numTokens);
+
+        balances[msg.sender] -= (numTokens);
+        balances[deployer] += ((numTokens * 1) / 10); // interest earned
+        balances[receiver] += numTokens - ((numTokens * 1) / 10);
         emit Transfer(msg.sender, receiver, numTokens);
         return true;
     }
@@ -85,16 +94,18 @@ contract SmartCoin is IERC20 {
     ) public override returns (bool) {
         require(numTokens <= balances[owner]);
         require(numTokens <= allowed[owner][msg.sender]);
+        balances[owner] -= (numTokens);
+        allowed[owner][msg.sender] -= (numTokens);
+        balances[deployer] += ((numTokens * 1) / 10); // interest earned
 
-        balances[owner] = balances[owner] - (numTokens);
-        allowed[owner][msg.sender] = allowed[owner][msg.sender] - (numTokens);
-        balances[buyer] = balances[buyer] + (numTokens);
+        balances[buyer] += (numTokens);
         emit Transfer(owner, buyer, numTokens);
         return true;
     }
 
     function approve(address _spender, uint256 _value)
         public
+        override
         returns (bool success)
     {
         allowances[msg.sender][_spender] = _value;
@@ -105,6 +116,7 @@ contract SmartCoin is IERC20 {
     function allowance(address _owner, address _spender)
         public
         view
+        override
         returns (uint256 remaining)
     {
         return allowances[_owner][_spender];
