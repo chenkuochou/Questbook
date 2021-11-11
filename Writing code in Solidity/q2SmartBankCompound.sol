@@ -30,7 +30,7 @@ contract SmartBankCompound {
     function withdraw(uint256 withdrawAmount) public payable returns (uint256) {
         require(withdrawAmount <= getUserEth(), "overdrawn");
 
-        balances[msg.sender] -= msg.value;
+        balances[msg.sender] -= withdrawAmount;
         contractBalance -= withdrawAmount;
 
         uint256 cethToRedeem = getTotalEthFromCeth() *
